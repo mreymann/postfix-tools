@@ -1,0 +1,64 @@
+#!/bin/php
+<?php
+$max_plain_mx = 5;
+$conns = [];
+$stdin = fopen( 'php://stdin', 'r' );
+while ( !feof( $stdin ) ) {
+	$line = fgets( $stdin );
+	# get both of the following lines and group them by pid
+	# Jun 23 15:45:16 smtp-out postfix/smtp[996628]: Trusted TLS connection established to example.com[123.123.124.136]:25: ...
+	# Jun 23 15:44:29 smtp-out postfix/smtp[994487]: AE3097C000B5: to=<debug@foo.example.com>, relayfoo.example.com[123.123.135.90]:25 ... status=sent ...
+	preg_match( '#^.*?postfix/smtp\[(.*?)\]: (.*?(TLS connection| to=<.*?status=sent).*?)$#', $line, $matches );
+	if ( $matches ) {
+		$pid = $matches[1];
+		$txt = $matches[2];
+		$conns[$pid][] = $txt;
+	}
+}
+fclose( $stdin );
+ksort( $conns );
+$mx_plain = [];
+$mails_tls = 0;
+$mails_plain = 0;
+foreach ( $conns as $conn ) {
+	$tls_ips = [];
+	foreach ( $conn as $line ) {
+		# add TLS connection IP to array
+		preg_match( '#^.*?TLS connection established to (.*?)\[(.*?)\].*?$#', $line, $matches );
+		if ( $matches ) {
+			list( $full, $host, $ip ) = $matches;
+			$tls_ips[] = $ip;
+		}
+		# check if "to"-IP is in array
+		# ... to=<hostmaster@example.com>, relay=mailproxy.example.com[123.123.162.145]...
+		preg_match( '#^.*? to=<(.*?)>.*?relay=(.*?)\[(.*?)\].*?$#', $line, $matches );
+		if ( $matches ) {
+			list( $to_line, $to_addr, $to_relay, $to_ip ) = $matches;
+			if ( ! in_array( $to_ip, $tls_ips ) ) {
+				#echo "no tls to: $to_addr via $to_relay\n";
+				$mails_plain++;
+				$mx_plain[] = "$to_relay ($to_ip)";
+			}
+			else {
+				$mails_tls++;
+			}
+		}
+	}
+}
+$mails_total = $mails_tls + $mails_plain;
+$mails_plain_perc = ( $mails_total == 0 ) ? 0 : round( $mails_plain / $mails_total * 100);
+echo "Outgoing mail count (total $mails_total):\n";
+echo "---------------------------\n";
+echo "$mails_tls\tusing TLS\n";
+echo "$mails_plain\tunencrypted ($mails_plain_perc %)\n";
+$mx_plain_count = array_count_values( $mx_plain );
+arsort( $mx_plain_count );
+echo "\n";
+echo "Top $max_plain_mx unencrypted MX hosts:\n";
+echo "---------------------------\n";
+$i = 0;
+foreach ( $mx_plain_count as $mx_plain_host=>$mx_plain_val ) {
+	echo "$mx_plain_val\t$mx_plain_host\n";
+	$i++;
+	if ( $i == $max_plain_mx ) break;
+}
