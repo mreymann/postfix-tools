@@ -6,7 +6,7 @@ Tools that might be of use for administrators of the Postfix MTA.
 
 List of MX hosts that don't use TLS encryption when sending / receiving mails.
 
-### Prerequesites
+### Prerequisites
 
 These scripts use plain PHP, so only the CLI package is needed:
 
