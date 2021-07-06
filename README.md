@@ -1,4 +1,4 @@
-# postfix-tools :envelope: :wrench:
+# postfix-tools :envelope::wrench:
 
 Tools that might be of use for administrators of the Postfix MTA.
 
