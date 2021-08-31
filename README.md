@@ -13,6 +13,10 @@ These scripts use plain PHP, so only the CLI package is needed:
 * yum install php-cli (CentOS)
 * apt install php-cli (Ubuntu)
 
+Make sure TLS connections are logged:
+* smtpd_tls_loglevel = 1
+* smtp_tls_loglevel = 1
+
 The scripts expect to read your mail log from STDIN.
 
 ### Examples
